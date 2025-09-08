@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Auriculoterapia — Prototipo Mejorado V2</title>
+<style>
+  body{font-family:system-ui,Arial;margin:18px;background:#f6f5f2;color:#222}
+  .container{display:grid;grid-template-columns:360px 1fr;gap:18px}
+  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+  h1{font-size:1.2rem;margin:0}
+  .card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+  select,textarea,button{width:100%;padding:8px;margin-top:6px;border-radius:8px;border:1px solid #ddd}
+  #ear-area{display:flex;justify-content:center}
+  svg{max-width:600px;height:auto}
+  .point{fill:#d9d9d9;cursor:pointer;transition:.12s;stroke:#8c8c8c;stroke-width:0.6}
+  .point:hover{transform:scale(1.12)}
+  .active{fill:#ffb74d;stroke:#d47b00;stroke-width:1.4}
+  #legend{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+  .legend-item{display:flex;align-items:center;gap:8px}
+  .dot{width:14px;height:14px;border-radius:50%;background:#ffb74d}
+  .protocol{background:#fff7e6;padding:8px;border-radius:8px;margin-top:10px;border:1px solid #ffe0b2}
+  footer{grid-column:1/-1;margin-top:8px;font-size:0.85rem;color:#555}
+</style>
+</head>
+<body>
+<div class="container" id="pageRoot">
+  <header>
+    <h1>Auriculoterapia — prototipo mejorado V2</h1>
+    <div style="font-size:0.9rem;color:#444">Demo educativa — no sustituye valoración profesional.</div>
+  </header>
+
+  <div class="card">
+    <label for="condition">Selecciona enfermedad / síntoma</label>
+    <select id="condition">
+      <option value="">-- Elige --</option>
+      <option value="ansiedad">Ansiedad</option>
+      <option value="insomnio">Insomnio</option>
+      <option value="dolor_cabeza">Dolor de cabeza</option>
+      <option value="digestivo">Problemas digestivos</option>
+      <option value="dolor_espalda">Dolor de espalda</option>
+      <option value="tabaquismo">Tabaquismo</option>
+    </select>
+
+    <div id="protocol" class="protocol" style="display:none">
+      <strong>Protocolo sugerido</strong>
+      <div id="protocol-text"></div>
+    </div>
+
+    <label for="notes">Notas personalizadas</label>
+    <textarea id="notes" rows="5"></textarea>
+    <button id="applyNotes">Aplicar notas</button>
+    <button id="resetBtn">Limpiar selección</button>
+
+    <div style="margin-top:12px">
+      <button id="exportPNG">Exportar PNG</button>
+      <button id="exportPDF">Exportar PDF</button>
+    </div>
+
+    <div id="legend"></div>
+  </div>
+
+  <div class="card">
+    <div id="ear-area">
+      <!-- SVG simplificado estilo Nogier -->
+      <svg id="earSVG" viewBox="0 0 300 600">
+        <ellipse cx="150" cy="300" rx="120" ry="260" fill="#f0e2d2" stroke="#d2b48c" />
+        <circle class="point" id="pt_shenmen" cx="120" cy="100" r="10" data-name="Shenmen" />
+        <circle class="point" id="pt_head" cx="100" cy="80" r="9" data-name="Cabeza" />
+        <circle class="point" id="pt_digestion" cx="150" cy="260" r="9" data-name="Digestión" />
+        <circle class="point" id="pt_back" cx="160" cy="320" r="9" data-name="Espalda" />
+        <circle class="point" id="pt_lung" cx="130" cy="200" r="9" data-name="Pulmón" />
+        <circle class="point" id="pt_smoking" cx="110" cy="220" r="9" data-name="Antitabaco" />
+      </svg>
+    </div>
+    <div><strong>Punto seleccionado:</strong> <span id="pointName">—</span></div>
+  </div>
+
+  <footer>Basado en el mapa de Nogier (feto invertido). Uso educativo.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const protocols = {
+  "ansiedad": {points:["pt_shenmen"], text:"Shenmen: calma y relajación."},
+  "insomnio": {points:["pt_shenmen","pt_head"], text:"Shenmen + Cabeza: mejorar sueño."},
+  "dolor_cabeza": {points:["pt_head"], text:"Cabeza: para migraña y cefalea."},
+  "digestivo": {points:["pt_digestion"], text:"Digestión: para náuseas, estómago."},
+  "dolor_espalda": {points:["pt_back"], text:"Espalda: dolor lumbar."},
+  "tabaquismo": {points:["pt_smoking","pt_lung"], text:"Antitabaco + Pulmón: apoyo dejar de fumar."}
+};
+const conditionSelect=document.getElementById('condition');
+const protocolDiv=document.getElementById('protocol');
+const protocolText=document.getElementById('protocol-text');
+const notes=document.getElementById('notes');
+const applyNotes=document.getElementById('applyNotes');
+const resetBtn=document.getElementById('resetBtn');
+const pointName=document.getElementById('pointName');
+const legend=document.getElementById('legend');
+const svg=document.getElementById('earSVG');
+
+function clearActive(){svg.querySelectorAll('.point').forEach(p=>p.classList.remove('active'));}
+function showProtocol(key){
+  if(!key){protocolDiv.style.display='none';protocolText.textContent='';clearActive();return;}
+  const p=protocols[key]; if(!p) return;
+  protocolDiv.style.display='block'; protocolText.textContent=p.text;
+  clearActive(); p.points.forEach(id=>{const el=document.getElementById(id); if(el) el.classList.add('active');});
+}
+conditionSelect.addEventListener('change',e=>showProtocol(e.target.value));
+svg.querySelectorAll('.point').forEach(c=>{
+  c.addEventListener('click',e=>{
+    clearActive(); e.currentTarget.classList.add('active');
+    pointName.textContent=e.currentTarget.dataset.name||'Punto';
+  });
+});
+applyNotes.addEventListener('click',()=>{protocolDiv.style.display='block';protocolText.textContent=notes.value;});
+resetBtn.addEventListener('click',()=>{conditionSelect.value='';notes.value='';showProtocol('');pointName.textContent='—';});
+(function buildLegend(){legend.innerHTML='';svg.querySelectorAll('.point').forEach(p=>{
+  const div=document.createElement('div');div.className='legend-item';div.innerHTML='<div class="dot"></div>'+p.dataset.name;
+  div.addEventListener('click',()=>{clearActive();p.classList.add('active');pointName.textContent=p.dataset.name;});
+  legend.appendChild(div);});})();
+document.getElementById('exportPNG').addEventListener('click',()=>{
+  html2canvas(document.getElementById('pageRoot'),{scale:2}).then(canvas=>{
+    const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='auriculoterapia.png';a.click();
+  });
+});
+document.getElementById('exportPDF').addEventListener('click',()=>{
+  html2canvas(document.getElementById('pageRoot'),{scale:2}).then(canvas=>{
+    const img=canvas.toDataURL('image/png');
+    const {jsPDF}=window.jspdf; const pdf=new jsPDF('p','pt','a4');
+    pdf.text("Auriculoterapia — Protocolo",40,40);
+    pdf.addImage(img,'PNG',40,60,500,0);
+    pdf.save("auriculoterapia.pdf");
+  });
+});
+</script>
+</body>
+</html>
