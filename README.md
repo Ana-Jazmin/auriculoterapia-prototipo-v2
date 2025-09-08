@@ -1,16 +1,14 @@
-Auriculoterapia Prototipo v3
-=============================
+# Auriculoterapia App
 
-Incluye:
-- Buscador de síntomas/enfermedades con autocompletado.
-- Conexión con IA (API OpenAI) para sugerir puntos de auriculoterapia.
-- Oreja realista como fondo + puntos SVG interactivos.
-- Exportación PDF/PNG con protocolo y notas.
+Esta aplicación permite visualizar más de 25 enfermedades tratables con auriculoterapia, mostrando los puntos de punción y sugerencias terapéuticas.
 
-### Instrucciones
-1. Descomprime ZIP y abre `index.html` localmente o sube a tu repo GitHub/Vercel.
-2. Para habilitar IA: reemplaza `TU_API_KEY` en el fetch dentro de `index.html` con tu API Key de OpenAI.
-3. Puedes ampliar la lista interna `protocols` en el script según nuevas enfermedades.
+## Estructura
 
-### Deploy
-Igual que versión 2: subir a GitHub y desplegar en Vercel.
+- `assets/`: Imágenes de oreja y puntos.
+- `src/components/`: Componentes reutilizables.
+- `src/screens/`: Pantallas principales.
+- `src/data/enfermedades.json`: Datos de enfermedades.
+
+## Uso
+
+Desarrollado en React Native. Ejecuta `npm start` para iniciar el proyecto.
