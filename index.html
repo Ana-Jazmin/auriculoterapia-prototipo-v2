@@ -2,6 +2,153 @@
 <!doctype html>
 <html lang="es">
 <head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Demo Auriculoterapia — Mapa de Puntos</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:18px;background:#f7f6f3;color:#222}
+  header{display:flex;gap:18px;align-items:center}
+  h1{margin:0;font-size:1.3rem}
+  #app{display:flex;gap:20px;margin-top:18px;flex-wrap:wrap}
+  .panel{background:white;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,0.06);flex:1 1 320px;min-width:280px}
+  label{display:block;margin-top:8px}
+  select,button{padding:8px;border-radius:8px;border:1px solid #ddd;width:100%}
+  #ear-wrap{display:flex;justify-content:center;align-items:center}
+  svg{max-width:320px;height:auto}
+  .point{fill:#bbb;cursor:pointer;transition:all .12s}
+  .point:hover{transform:scale(1.08)}
+  .active{fill:#ffb74d;stroke:#d47b00;stroke-width:1.5px}
+  #info{margin-top:12px}
+  .small{font-size:0.9rem;color:#555}
+  .protocol{background:#fff7e6;padding:8px;border-radius:8px;margin-top:10px;border:1px solid #ffe0b2}
+</style>
+</head>
+<body>
+<header>
+  <h1>Auriculoterapia (demo): selecciona un problema</h1>
+</header>
+
+<div id="app">
+  <div class="panel">
+    <label for="condition">Problema / objetivo</label>
+    <select id="condition">
+      <option value="">-- Elige --</option>
+      <option value="ansiedad">Ansiedad / Estrés</option>
+      <option value="insomnio">Insomnio</option>
+      <option value="dolor_cabeza">Dolor de cabeza / Migraña</option>
+      <option value="digestivo">Sistema digestivo / Náuseas</option>
+      <option value="hombro">Dolor de hombro</option>
+    </select>
+
+    <div id="info" class="small">
+      <p>Haz clic en la oreja para ver cada punto. La demo usa una selección de puntos comunes según mapas de auriculoterapia (Nogier / TCM).</p>
+    </div>
+
+    <div id="protocol" class="protocol" style="display:none">
+      <strong>Protocolo:</strong>
+      <div id="protocol-text"></div>
+    </div>
+
+    <button id="downloadBtn" style="margin-top:10px">Imprimir / Guardar imagen (usar impresión del navegador)</button>
+    <div style="margin-top:12px" class="small">Uso: información educativa — no sustituye una consulta profesional. Mantén higiene y evita que la semilla entre en el conducto auditivo.</div>
+  </div>
+
+  <div class="panel" id="mapPanel">
+    <div id="ear-wrap">
+      <!-- Simplified ear SVG with a few hotspots -->
+      <svg viewBox="0 0 300 500" id="earSVG" aria-label="Mapa de oreja">
+        <defs>
+          <style>.label{font:12px sans-serif;fill:#222}</style>
+        </defs>
+        <!-- ear silhouette -->
+        <path d="M60 60 C40 140 40 300 120 360 C170 400 210 420 240 400 C260 380 260 320 240 260 C220 200 150 150 120 120 C90 90 80 60 60 60 Z" fill="#fff2e6" stroke="#e0c5a6"/>
+        <!-- hotspots (circles) with data-point ids -->
+        <circle class="point" id="p_ansiedad" cx="200" cy="110" r="10" data-name="Shenmen / Ansiedad" />
+        <circle class="point" id="p_insomnio" cx="180" cy="150" r="9" data-name="Subcortex / Insomnio" />
+        <circle class="point" id="p_dolor_cabeza" cx="120" cy="120" r="9" data-name="Point for Head / Cabeza" />
+        <circle class="point" id="p_digestivo" cx="130" cy="220" r="9" data-name="Estómago / Digestión" />
+        <circle class="point" id="p_hombro" cx="200" cy="230" r="9" data-name="Hombro / Escápula" />
+        <!-- labels (optional) -->
+        <text x="210" y="110" class="label" style="visibility:hidden">Shenmen</text>
+      </svg>
+    </div>
+
+    <div id="selected" style="margin-top:12px">
+      <strong>Punto seleccionado:</strong>
+      <div id="pointName">—</div>
+      <div class="small" id="pointInstructions"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Minimal mapping from condition -> point IDs + short protocol
+  const protocols = {
+    "ansiedad": {points:["p_ansiedad"], text:"Coloca 1 semilla en Shenmen. Mantener 3-5 días. Masajear 2-3 veces al día."},
+    "insomnio": {points:["p_insomnio","p_ansiedad"], text:"Colocar semillas en Subcortex y Shenmen. Mantener 3-5 días. Masajear antes de dormir."},
+    "dolor_cabeza": {points:["p_dolor_cabeza","p_ansiedad"], text:"Colocar en punto de cabeza y Shenmen si hay componente emocional. Revisar tolerancia."},
+    "digestivo": {points:["p_digestivo"], text:"Colocar en Estómago. Masajear 2 veces al día. Revisar contraindicación si hay heridas."},
+    "hombro": {points:["p_hombro","p_dolor_cabeza"], text:"Colocar en Hombro y punto referente si dolor irradiado. Mantener según respuesta."}
+  };
+
+  const conditionSelect = document.getElementById('condition');
+  const protocolDiv = document.getElementById('protocol');
+  const protocolText = document.getElementById('protocol-text');
+  const pointName = document.getElementById('pointName');
+  const pointInstructions = document.getElementById('pointInstructions');
+  const svg = document.getElementById('earSVG');
+
+  function clearActive(){
+    svg.querySelectorAll('.point').forEach(c => c.classList.remove('active'));
+  }
+
+  function showProtocol(key){
+    if(!key){ protocolDiv.style.display='none'; clearActive(); pointName.textContent='—'; pointInstructions.textContent=''; return; }
+    const p = protocols[key];
+    protocolDiv.style.display='block';
+    protocolText.textContent = p.text;
+    clearActive();
+    p.points.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.classList.add('active');
+    });
+    // Show first point data
+    const first = document.getElementById(p.points[0]);
+    if(first){
+      pointName.textContent = first.dataset.name || 'Punto';
+      pointInstructions.textContent = p.text;
+    }
+  }
+
+  conditionSelect.addEventListener('change', e => {
+    showProtocol(e.target.value);
+  });
+
+  // Allow user to click any point to see details
+  svg.querySelectorAll('.point').forEach(c=>{
+    c.addEventListener('click', e=>{
+      clearActive();
+      e.currentTarget.classList.add('active');
+      pointName.textContent = e.currentTarget.dataset.name;
+      pointInstructions.textContent = 'Colocar semilla aquí; mantener 3-5 días según tolerancia; masajear suavemente varias veces al día.';
+      // Also set select if matches a protocol
+      // (optional) set select to the matching condition if exists
+    });
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click', ()=>{
+    window.print();
+  });
+
+  // initial
+  showProtocol('');
+</script>
+</body>
+</html>
+
+<!doctype html>
+<html lang="es">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Auriculoterapia v3 — buscador + IA</title>
