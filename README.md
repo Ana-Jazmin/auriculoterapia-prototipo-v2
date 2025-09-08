@@ -1,26 +1,16 @@
-# Auriculoterapia - Prototipo V2
+Auriculoterapia Prototipo v3
+=============================
 
-## Contenido
-- `index.html`: app con SVG inspirado en Nogier, protocolos, export PNG y PDF (jsPDF).
+Incluye:
+- Buscador de síntomas/enfermedades con autocompletado.
+- Conexión con IA (API OpenAI) para sugerir puntos de auriculoterapia.
+- Oreja realista como fondo + puntos SVG interactivos.
+- Exportación PDF/PNG con protocolo y notas.
 
-## Ejecutar localmente
-1. Abre `index.html` en tu navegador.
+### Instrucciones
+1. Descomprime ZIP y abre `index.html` localmente o sube a tu repo GitHub/Vercel.
+2. Para habilitar IA: reemplaza `TU_API_KEY` en el fetch dentro de `index.html` con tu API Key de OpenAI.
+3. Puedes ampliar la lista interna `protocols` en el script según nuevas enfermedades.
 
-## Subir a GitHub
-1. Descomprime el ZIP.
-2. Abre una terminal en la carpeta.
-3. Ejecuta:
-```bash
-git init
-git add index.html README.md
-git commit -m "Auriculoterapia V2"
-git branch -M main
-git remote add origin https://github.com/TU_USUARIO/auriculoterapia-v2.git
-git push -u origin main
-```
-
-## Desplegar en Vercel
-1. Crea cuenta en [Vercel](https://vercel.com).
-2. Importa el repositorio desde GitHub.
-3. Elige "Frameworkless / Static site".
-4. Vercel generará una URL pública automática.
+### Deploy
+Igual que versión 2: subir a GitHub y desplegar en Vercel.
